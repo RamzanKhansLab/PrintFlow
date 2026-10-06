@@ -1,11 +1,6 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Layout, AdminLayout, RequireAuth } from "./layouts/Layout";
-import {
-  HomePage,
-  ServicesPage,
-  PricingPage,
-  NotFoundPage,
-} from "./pages/PublicPages";
+import { HomePage, GuidePage, NotFoundPage } from "./pages/PublicPages";
 import { AuthPage, AccountPage } from "./pages/AuthPages";
 import { PrintPage } from "./pages/PrintPage";
 import { OrdersPage, OrderPage, TrackPage } from "./pages/OrderPages";
@@ -17,27 +12,28 @@ import {
   JobsPage,
 } from "./pages/WorkspacePages";
 import { DsaPage } from "./pages/DsaPage";
-import {
-  InventoryPage,
-  PricingAdminPage,
-  UsersPage,
-  AuditPage,
-} from "./pages/ManagementPages";
+import { InventoryPage, UsersPage, AuditPage } from "./pages/ManagementPages";
 
+function LegacyRequestLink() {
+  const { id } = useParams();
+  return <Navigate to={`/requests/${id}`} replace />;
+}
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
-        <Route path="services" element={<ServicesPage />} />
-        <Route path="pricing" element={<PricingPage />} />
+        <Route path="guide" element={<GuidePage />} />
+        <Route path="services" element={<Navigate to="/guide" replace />} />
         <Route path="login" element={<AuthPage key="login" />} />
         <Route path="register" element={<AuthPage key="register" register />} />
         <Route element={<RequireAuth />}>
           <Route path="print" element={<PrintPage />} />
           <Route path="track" element={<TrackPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="orders/:id" element={<OrderPage />} />
+          <Route path="requests" element={<OrdersPage />} />
+          <Route path="requests/:id" element={<OrderPage />} />
+          <Route path="orders" element={<Navigate to="/requests" replace />} />
+          <Route path="orders/:id" element={<LegacyRequestLink />} />
           <Route path="account" element={<AccountPage />} />
         </Route>
         <Route element={<RequireAuth staff />}>
@@ -51,7 +47,6 @@ export default function App() {
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="dsa" element={<DsaPage />} />
             <Route element={<RequireAuth admin />}>
-              <Route path="pricing" element={<PricingAdminPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="audit" element={<AuditPage />} />
             </Route>

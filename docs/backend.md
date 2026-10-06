@@ -2,7 +2,7 @@
 
 ## Entry points
 
-`backend/src/server.js` loads backend settings, connects to MongoDB, requires replica-set/sharded transaction support, initializes model collections/indexes, creates default pricing when missing, configures sockets and starts a local Python worker. It reconstructs the live Python scheduler before binding one listener on `0.0.0.0` using `PORT` or 5000.
+`backend/src/server.js` loads backend settings, connects to MongoDB, requires replica-set/sharded transaction support, initializes model collections/indexes, configures sockets and starts a local Python worker. It reconstructs the live Python scheduler before binding one listener on `0.0.0.0` using `PORT` or 5000.
 
 `backend/src/app.js` configures Helmet, production trust-proxy behavior, JSON parsing, cookies, same-origin mutation checks and API routes. Unknown API paths return JSON. Express then serves `frontend/dist`; non-API extensionless GET routes fall back to `index.html`. A missing static asset returns 404 rather than HTML. Production startup refuses a missing frontend build.
 
@@ -16,7 +16,7 @@
 - `routes/api.js`: the endpoint layer; [API reference](api.md) documents every mounted route.
 - `services/workflow.js`: order creation, cancellation, printer start/status, progress, completion, QC, reprints, stock and transactional audits.
 - `services/files.js`: file inspection, PDF/image parsing, GridFS storage.
-- `pricing/quote.js`: page-range validation, current pricing and integer-paise quotes.
+- `printing/plan.js`: page-range validation and page/copy/impression/sheet counts.
 - `dsa/`: Python implementations of the three data structures, scheduler, sandbox and worker dispatcher.
 - `services/python-dsa.js`: private JSON-lines subprocess transport; optional `PYTHON_BIN` selects the executable.
 - `services/print-scheduler.js`: serializes Node mutations and persists/acknowledges Python scheduling decisions.
@@ -30,9 +30,9 @@ Controllers do not own array queues. They call Workflow, which enters the Node s
 
 The supported topology is one scheduler process for one database. Start/finish/QC paths check their required persisted states; duplicate or incompatible transitions return 409. Order creation has a customer-scoped UUID key. Reprint linkage stops a failed attempt from spawning multiple direct children. This does not promise distributed or hardware-level exactly-once execution.
 
-## File storage and pricing
+## File storage and print preparation
 
-Uploads never depend on a Render disk. GridFS stores bytes and Document stores metadata. Ownership/staff authorization protects downloads. Prices are stored in one editable PricingRule. Stock is paper-specific; starting a job decrements enough sheets inside the same transaction as the job/order transition.
+Uploads never depend on a Render disk. GridFS stores bytes and Document stores metadata. Ownership/staff authorization protects downloads. `preparePrint` checks ownership and derives paper usage from validated instructions. Submission recalculates and persists `printSummary`. Stock is paper-specific; starting a job decrements enough sheets inside the same transaction as the job/order transition.
 
 ## Health and shutdown
 

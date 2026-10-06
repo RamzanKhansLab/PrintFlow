@@ -43,7 +43,7 @@ const orderSchema = new Schema(
     reference: { type: String, required: true, unique: true },
     clientRequestId: { type: String, required: true },
     config: { type: Schema.Types.Mixed, required: true },
-    quote: { type: Schema.Types.Mixed, required: true },
+    printSummary: Schema.Types.Mixed,
     deadline: Date,
     status: {
       type: String,
@@ -60,6 +60,10 @@ const orderSchema = new Schema(
   },
   options,
 );
+// Exclude legacy monetary snapshots without modifying existing database records.
+orderSchema.pre(/^find/, function () {
+  this.select("-quote");
+});
 orderSchema.index({ customer: 1, clientRequestId: 1 }, { unique: true });
 orderSchema.index({ customer: 1, createdAt: -1 });
 export const Order = mongoose.model("Order", orderSchema, "orders");
@@ -122,24 +126,6 @@ export const Printer = mongoose.model(
     options,
   ),
   "printers",
-);
-export const PricingRule = mongoose.model(
-  "PricingRule",
-  new Schema(
-    {
-      key: { type: String, unique: true, default: "default" },
-      currency: { type: String, default: "INR" },
-      basePage: Number,
-      colorMultiplier: Number,
-      duplexMultiplier: Number,
-      paperMultipliers: { A4: Number, A3: Number, Letter: Number },
-      binding: { none: Number, staple: Number, spiral: Number },
-      rushMultiplier: Number,
-      taxPercent: Number,
-    },
-    options,
-  ),
-  "pricingRules",
 );
 export const Inventory = mongoose.model(
   "Inventory",

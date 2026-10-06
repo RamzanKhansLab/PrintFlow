@@ -7,18 +7,17 @@
 3. Promote that existing email with `npm run admin -- EMAIL`, then sign out/in.
 4. Add actual printer capabilities in `/admin/printers`; set stations online when ready.
 5. Add available paper in `/admin/inventory`.
-6. Review the initial rates in `/admin/pricing`.
-7. Invite operators to register through the site, then assign their role in `/admin/users`.
+6. Invite operators to register through the site, then assign their role in `/admin/users`.
 
 There are no seeded credentials, invented stations, fake inventory, or sample orders.
 
-## Customer
+## Member
 
 1. Sign in, open `/print`, and upload a PDF/PNG/JPEG or select a recent upload.
 2. Review the parsed page count. Choose pages, copies, color, paper, sides and binding.
 3. Choose standard or rush and, optionally, a requested deadline.
-4. Read the server-calculated quote. Place the order; the backend validates ownership and recalculates the price.
-5. The order appears at `/orders/:id` with a `PF-XXXXXXXX` reference. `/track` accepts that reference but still requires the owner or staff session.
+4. Review the server-calculated page and sheet counts. Submit the request; the backend validates ownership and recalculates paper usage.
+5. The order appears at `/requests/:id` with a `PF-XXXXXXXX` reference. `/track` accepts that reference but still requires the owner or staff session.
 6. Watch queued → in progress → quality check → ready. Each reprint attempt appears in the order history.
 7. Cancel only while the order remains queued and no printing has started. READY means the print desk passed the quality check and the order is available for collection.
 
@@ -43,7 +42,7 @@ Putting a printer offline/error reroutes its unstarted buffer. An already active
 3. Heap: clear, enqueue scores 2/4/1, inspect the heap root and removal order, then dequeue the score-4 job.
 4. Ring: clear, insert five items, remove two, insert two. Observe physical slots reused and front/rear wrapping.
 5. Read the displayed operation complexity and actual source path.
-6. Use the production scheduler panel to observe the real workflow. Queue several customer jobs with all printers offline, then bring a compatible station online to see heap-driven routing.
+6. Use the production scheduler panel to observe the real workflow. Queue several member jobs with all printers offline, then bring a compatible station online to see heap-driven routing.
 7. Complete real printing and QC stages to connect the class operations to application behavior.
 
 Sandbox operations are per staff account and do not alter real orders. The production scheduler button does operate the real queue. These instructions describe what to demonstrate, not a previously executed evaluation.

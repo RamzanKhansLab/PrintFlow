@@ -25,7 +25,7 @@ The baseline problem is a manually coordinated print desk using verbal requests 
 
 ## 5. Proposed system
 
-Customers upload documents and select print settings. The backend produces a current quote and persists an order/job. A binary heap selects pending jobs; a compatibility router feeds circular printer buffers. Operators report real printing results, and printed jobs enter a linked FIFO for quality control. Failed attempts can create linked reprints. The application displays persisted status through REST and Socket.IO updates.
+Members upload documents and select print settings. The backend calculates page and paper requirements and persists a print request/job. A binary heap selects pending jobs; a compatibility router feeds circular printer buffers. Operators report real printing results, and printed jobs enter a linked FIFO for quality control. Failed attempts can create linked reprints. The application displays persisted status through REST and Socket.IO updates.
 
 ## 6. Technology stack
 
@@ -58,15 +58,15 @@ The algorithms and production integration are in `backend/src/dsa/`. Inspection/
 
 ## 9. Implementation
 
-Backend validation and database transactions preserve order/job/stock consistency. Node serializes workflow mutations, while the local Python worker owns all DSA structures and algorithms. Private JSON-lines messages connect them; database reconstruction recovers from Node/worker restart or failed writes. GridFS holds uploaded bytes independent of the web host's filesystem. Pricing rules remain in MongoDB and quotes are recomputed on order creation. React uses role-aware routes, server resources and authenticated socket invalidation. The DSA lab uses the same Python classes through `demo.py`.
+Backend validation and database transactions preserve order/job/stock consistency. Node serializes workflow mutations, while the local Python worker owns all DSA structures and algorithms. Private JSON-lines messages connect them; database reconstruction recovers from Node/worker restart or failed writes. GridFS holds uploaded bytes independent of the web host's filesystem. The backend derives paper requirements from validated instructions and stores a print summary with the request. React uses role-aware routes, server resources and authenticated socket invalidation. The DSA lab uses the same Python classes through `demo.py`.
 
 ## 10. Features
 
-Authenticated uploads, PDF page counting, print settings, database-driven quotes, order tracking, priority scheduling, bounded printer buffers, manual printer progress, QC, reprints, paper inventory, multi-printer routing, role management, audit history and interactive queue visualization. See [features](features.md) for exact component mappings and scope.
+Authenticated uploads, PDF page counting, print settings, paper previews, print request tracking, priority scheduling, bounded printer buffers, manual printer progress, QC, reprints, paper inventory, multi-printer routing, role management, audit history and interactive queue visualization. See [features](features.md) for exact component mappings and scope.
 
 ## 11. Database design
 
-Persistent models are User, Document, Order, PrintJob, Printer, PricingRule, Inventory and AuditLog, plus GridFS files/chunks. Orders link a customer and document to the original print attempt and reprints. Jobs reference printers and retain stage timestamps. Unique indexes support email identity, printer names and customer-scoped order submission keys. See [database](database.md).
+Persistent models are User, Document, Order, PrintJob, Printer, Inventory and AuditLog, plus GridFS files/chunks. Orders link a customer and document to the original print attempt and reprints. Jobs reference printers and retain stage timestamps. Unique indexes support email identity, printer names and customer-scoped order submission keys. See [database](database.md).
 
 ## 12. Results and evaluation status
 
@@ -96,3 +96,7 @@ Physical printer agents with acknowledgements, secure document conversion, passw
 ## 16. Conclusion
 
 PrintFlow provides a concrete academic implementation in which the heap, circular queues and linked FIFO participate in the application's real execution path. Its structure supports explaining data-structure operations, complexity, persistence and scheduling tradeoffs during a fifth-semester DSA evaluation. Functional and deployment results must be established by executing the owner's acceptance checks.
+
+## Interface design
+
+PrintFlow is a shared printing utility for shops, campuses, offices and labs. A Y2K/Memphis theme combines chrome gradients, digital typography and grids with bold borders, lilac/lime/cyan/peach blocks, squiggles and geometric motifs. The launchpad exposes print submission, tracking and role-appropriate station tools. Pricing and storefront features have been removed. Runtime and browser evaluation remain the project owner's responsibility.

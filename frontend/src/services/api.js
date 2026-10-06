@@ -23,10 +23,6 @@ export async function api(path, options = {}) {
   }
   return payload;
 }
-export const money = (paise = 0) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
-    paise / 100,
-  );
 export const date = (value) =>
   value
     ? new Date(value).toLocaleString("en-IN", {

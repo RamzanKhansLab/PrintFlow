@@ -15,7 +15,7 @@ QUEUED → ASSIGNED → PRINTING → PRINTED → QUALITY_CHECK → COMPLETED
 
 | Job transition                    | Trigger                                     | Order status  | Runtime change                              |
 | --------------------------------- | ------------------------------------------- | ------------- | ------------------------------------------- |
-| Create → QUEUED                   | Customer places order                       | QUEUED        | Heap enqueue                                |
+| Create → QUEUED                   | Member submits request                      | QUEUED        | Heap enqueue                                |
 | QUEUED → ASSIGNED                 | Scheduler finds compatible online station   | QUEUED        | Heap dequeue, ring enqueue                  |
 | ASSIGNED → PRINTING               | Operator starts ring head; stock sufficient | IN_PROGRESS   | Ring dequeue, set station active            |
 | PRINTING → PRINTING               | Operator increases progress 0–99            | IN_PROGRESS   | Update active job snapshot                  |
@@ -27,7 +27,7 @@ QUEUED → ASSIGNED → PRINTING → PRINTED → QUALITY_CHECK → COMPLETED
 | QUEUED / ASSIGNED → CANCELLED     | Authorized cancellation before starting     | CANCELLED     | Remove waiting job                          |
 | ASSIGNED → QUEUED                 | Station goes offline/error                  | QUEUED        | Waiting ring drains into heap for rerouting |
 
-Orders currently contain one original document/job and any subsequent reprint attempts. Failed predecessors remain in history. A failed job can have only one direct reprint child. A failed child can in turn receive its own child. Reprints preserve the saved order quote and do not create an extra payment charge.
+Orders currently contain one original document/job and any subsequent reprint attempts. Failed predecessors remain in history. A failed job can have only one direct reprint child. A failed child can in turn receive its own child. Reprints preserve the request settings and create a new attempt; starting that attempt consumes additional sheets.
 
 ## Admission and scheduling
 

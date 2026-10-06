@@ -51,7 +51,7 @@ export function Empty({ title = "Nothing here yet", children }) {
 export function Badge({ status }) {
   return (
     <span className={`badge status-${String(status).toLowerCase()}`}>
-      {String(status).replaceAll("_", " ")}
+      {status === "customer" ? "member" : String(status).replaceAll("_", " ")}
     </span>
   );
 }

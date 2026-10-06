@@ -10,7 +10,6 @@ import {
   Order,
   PrintJob,
   Printer,
-  PricingRule,
   Inventory,
   AuditLog,
 } from "../models/index.js";
@@ -21,7 +20,7 @@ import {
   pagination,
   roleSchema,
 } from "../middleware/validation.js";
-import { createQuote, pricingSchema } from "../pricing/quote.js";
+import { preparePrint } from "../printing/plan.js";
 import { bucket, uploadDocument } from "../services/files.js";
 import { inspectDemo, operateDemo } from "../services/dsa-demo.js";
 import { transaction } from "../services/workflow.js";
@@ -115,27 +114,9 @@ export function apiRoutes({ auth, scheduler, workflow, events }) {
   api.get("/auth/me", auth.required, (req, res) =>
     res.json({ data: publicUser(req.user) }),
   );
-  api.get("/pricing", async (req, res) =>
-    res.json({ data: await PricingRule.findOne({ key: "default" }).lean() }),
-  );
-  api.post("/pricing/quote", auth.required, async (req, res) => {
-    const { quote } = await createQuote(req.user, req.body);
-    res.json({ data: quote });
-  });
-  api.put("/pricing", auth.required, admin, async (req, res) => {
-    const input = pricingSchema.parse(req.body);
-    const rule = await transaction(
-      req.user,
-      "pricing.updated",
-      async (session) =>
-        PricingRule.findOneAndUpdate(
-          { key: "default" },
-          { $set: input },
-          { new: true, session },
-        ).lean(),
-    );
-    events.staff("pricing:updated", rule);
-    res.json({ data: rule });
+  api.post("/print/preview", auth.required, async (req, res) => {
+    const { printSummary } = await preparePrint(req.user, req.body);
+    res.json({ data: printSummary });
   });
   api.post(
     "/files",
@@ -201,7 +182,7 @@ export function apiRoutes({ auth, scheduler, workflow, events }) {
     const order = await Order.findOne(filter)
       .populate("document", "name pages")
       .lean();
-    assert(order, 404, "Order not found");
+    assert(order, 404, "Print request not found");
     res.json({
       data: {
         order,
@@ -220,7 +201,7 @@ export function apiRoutes({ auth, scheduler, workflow, events }) {
         (req.user.role !== "customer" ||
           String(order.customer) === String(req.user._id)),
       404,
-      "Order not found",
+      "Print request not found",
     );
     res.json({
       data: {

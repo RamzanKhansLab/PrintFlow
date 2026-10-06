@@ -34,6 +34,8 @@ Copy the generated secret into `backend/.env`. The file is loaded relative to `b
 | `NODE_ENV`    | Secure-cookie/proxy/static-build behavior | `development` by default; `production` on Render                     |
 | `PORT`        | Express + Socket.IO HTTP listener         | `5000` locally                                                       |
 
+Optional `PYTHON_BIN` selects a Python executable path; it defaults to `python` on Windows and `python3` elsewhere. Run `npm.cmd run check:python` to check interpreter availability independently of the database.
+
 No `COOKIE_SECRET`, Cloudinary, Razorpay, Redis, or frontend environment variables are used. Uploads use GridFS and payment is outside the app. Never commit the actual `.env`.
 
 ## Development
@@ -62,8 +64,7 @@ Use the default backend port 5000 with the provided Vite proxy. If changing the 
 2. Run `npm.cmd run admin -- your-email@example.com` against the same database. This promotes an existing account; it does not create a password or seed a shared account.
 3. Sign out and back in. Open `/admin/printers` and add your printer's real supported capabilities. New printers are offline until explicitly switched online.
 4. In `/admin/inventory`, add the paper actually available. Starting a print with insufficient stock returns 409 without changing the job or stock.
-5. Review editable defaults in `/admin/pricing`. Prices are INR: base ₹2/page, color 5×, A4/Letter 1×, A3 2×, duplex 1×, staple ₹5/copy, spiral ₹40/copy, rush 1.5×, tax 0%. These are starter rules, not a claim about market rates.
-6. Other users register normally. An admin can assign `operator` or `admin` through `/admin/users`. Self-demotion through that API is disabled.
+5. Other users register normally. An admin can assign `operator` or `admin` through `/admin/users`. Self-demotion through that API is disabled.
 
 ## Built application on a single local origin
 

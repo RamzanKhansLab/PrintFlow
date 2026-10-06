@@ -12,7 +12,7 @@ import {
   Pagination,
 } from "../components/ui";
 import { useResource } from "../hooks/useResource";
-import { api, date, money } from "../services/api";
+import { api, date } from "../services/api";
 import { useRealtime } from "../store/RealtimeContext";
 import { useAuth } from "../store/AuthContext";
 
@@ -24,7 +24,7 @@ export function OrdersPage() {
     <div className="container section">
       <Heading
         eyebrow="Your print history"
-        title={user.role === "customer" ? "My orders" : "All print orders"}
+        title={user.role === "customer" ? "My requests" : "All print requests"}
         action={
           <Link className="button" to="/print">
             New print <ArrowRight size={17} />
@@ -41,10 +41,10 @@ export function OrdersPage() {
           <table>
             <thead>
               <tr>
-                <th>Order</th>
+                <th>Request</th>
                 <th>Document</th>
-                <th>Placed</th>
-                <th>Total</th>
+                <th>Submitted</th>
+                <th>Sheets</th>
                 <th>Status</th>
                 <th>
                   <span className="sr-only">Details</span>
@@ -55,19 +55,19 @@ export function OrdersPage() {
               {resource.data.map((order) => (
                 <tr key={order._id}>
                   <td>
-                    <Link className="text-link" to={`/orders/${order._id}`}>
+                    <Link className="text-link" to={`/requests/${order._id}`}>
                       {order.reference}
                     </Link>
                   </td>
                   <td>{order.document?.name || "Document"}</td>
                   <td>{date(order.createdAt)}</td>
-                  <td>{money(order.quote.totalPaise)}</td>
+                  <td>{order.printSummary?.sheets ?? "—"}</td>
                   <td>
                     <Badge status={order.status} />
                   </td>
                   <td>
                     <Link
-                      to={`/orders/${order._id}`}
+                      to={`/requests/${order._id}`}
                       aria-label={`View ${order.reference}`}
                     >
                       <ArrowRight size={18} />
@@ -81,7 +81,7 @@ export function OrdersPage() {
       ) : (
         !resource.error && (
           <Empty title="Your next print starts here">
-            Upload a document to create your first order.
+            Upload a document to submit your first request.
           </Empty>
         )
       )}
@@ -100,11 +100,11 @@ function OrderDetail({ data, reload }) {
   return (
     <>
       <Heading
-        eyebrow="Order details"
+        eyebrow="Request details"
         title={order.reference}
         action={<Badge status={order.status} />}
       >
-        {order.document?.name} · Placed {date(order.createdAt)}
+        {order.document?.name} · Submitted {date(order.createdAt)}
       </Heading>
       <div className="detail-layout">
         <section className="form-stack">
@@ -112,7 +112,7 @@ function OrderDetail({ data, reload }) {
             <h2>In the print flow</h2>
             <p className="muted">
               {status === "connected"
-                ? "Updates appear here as your print desk works on the order."
+                ? "Updates appear here as your print desk works on the request."
                 : "Live updates are offline. Refresh to check the latest status."}
             </p>
             <div className="timeline">
@@ -181,9 +181,11 @@ function OrderDetail({ data, reload }) {
             <dd>{config.binding}</dd>
             <dt>Deadline</dt>
             <dd>{date(order.deadline)}</dd>
-            <dt>Quoted total</dt>
+            <dt>Required sheets</dt>
             <dd>
-              <strong>{money(order.quote.totalPaise)}</strong>
+              <strong>
+                {order.printSummary?.sheets ?? jobs[0]?.sheets ?? "—"}
+              </strong>
             </dd>
           </dl>
           {order.document?._id && (
@@ -202,7 +204,7 @@ function OrderDetail({ data, reload }) {
                 reload();
               }}
             >
-              Cancel unstarted order
+              Cancel unstarted request
             </ActionButton>
           )}
           <p className="muted small-text">
@@ -219,8 +221,8 @@ export function OrderPage() {
   const resource = useResource(`/orders/${id}`);
   return (
     <div className="container section">
-      <Link className="text-link back-link" to="/orders">
-        ← Back to orders
+      <Link className="text-link back-link" to="/requests">
+        ← Back to requests
       </Link>
       <ErrorNotice>{resource.error}</ErrorNotice>
       {resource.loading ? (
@@ -242,7 +244,7 @@ export function TrackPage() {
   return (
     <div className="container section">
       <Heading eyebrow="Stay in the loop" title="Where’s your print?">
-        Enter the order reference from your account to see its latest status.
+        Enter the request reference from your account to see its latest status.
       </Heading>
       <form
         className="track-form card"
@@ -252,7 +254,7 @@ export function TrackPage() {
           resource.reload();
         }}
       >
-        <Field label="Order reference">
+        <Field label="Request reference">
           <input
             placeholder="PF-1234ABCD"
             value={reference}
@@ -264,7 +266,7 @@ export function TrackPage() {
         </Field>
         <button className="button">
           <Search size={17} />
-          Track order
+          Track request
         </button>
       </form>
       <ErrorNotice>{resource.error}</ErrorNotice>

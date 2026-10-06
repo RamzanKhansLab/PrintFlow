@@ -179,7 +179,8 @@ export function DsaPage() {
         eyebrow="BE · Semester 5 · Data Structures & Algorithms"
         title="Inside the queue"
       >
-        Operate the actual queue classes, then see where they work in PrintFlow.
+        Operate the actual Python queue classes, then see where they work in
+        PrintFlow.
       </Heading>
       <div className="tabs" role="tablist" aria-label="Data structure">
         {Object.entries(concepts).map(([key, value]) => (
@@ -285,10 +286,10 @@ export function DsaPage() {
               <code>{concept.file}</code>
             </div>
             <p className="muted small-text">
-              Sandbox operations use the same imported classes as the scheduler.
+              Sandbox operations use the same Python classes as the scheduler.
               Each staff account has its own sandbox; it resets after an hour of
               inactivity or a server restart. Sandbox jobs do not become print
-              orders.
+              requests.
             </p>
           </section>
         )

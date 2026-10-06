@@ -17,7 +17,7 @@ import { api, date } from "../services/api";
 
 function JobChip({ job }) {
   return (
-    <Link to={`/orders/${job.order}`} className="job-chip">
+    <Link to={`/requests/${job.order}`} className="job-chip">
       <strong>{job.label}</strong>
       <small>
         Priority {job.priorityScore} · {job.config.paperSize} · {job.sheets}{" "}
@@ -120,7 +120,7 @@ export function DashboardPage() {
                 <h2>Paper on hand</h2>
                 {inventory.data?.length ? (
                   inventory.data.map((stock) => (
-                    <div className="price-line" key={stock._id}>
+                    <div className="data-line" key={stock._id}>
                       <span>{stock.paperSize}</span>
                       <strong>{stock.sheets.toLocaleString()} sheets</strong>
                     </div>
@@ -679,7 +679,7 @@ export function JobsPage() {
           <table>
             <thead>
               <tr>
-                <th>Order / job</th>
+                <th>Request / job</th>
                 <th>Priority</th>
                 <th>Deadline</th>
                 <th>State</th>
@@ -690,7 +690,7 @@ export function JobsPage() {
               {resource.data.map((job) => (
                 <tr key={job._id}>
                   <td>
-                    <Link className="text-link" to={`/orders/${job.order}`}>
+                    <Link className="text-link" to={`/requests/${job.order}`}>
                       {job.label}
                     </Link>
                     <small>
@@ -739,7 +739,7 @@ export function JobsPage() {
         </div>
       ) : (
         <Empty title="No matching jobs">
-          Print jobs will appear here after an order is placed.
+          Print jobs will appear here after a request is submitted.
         </Empty>
       )}
       <Pagination

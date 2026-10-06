@@ -22,7 +22,7 @@ export function AuthPage({ register = false }) {
         target?.startsWith("/") && !target.startsWith("//")
           ? target
           : user.role === "customer"
-            ? "/orders"
+            ? "/requests"
             : "/admin",
         { replace: true },
       );
@@ -37,9 +37,9 @@ export function AuthPage({ register = false }) {
       <section className="auth-aside">
         <span className="eyebrow">Welcome to PrintFlow</span>
         <h1>
-          Your ideas deserve
+          Your documents.
           <br />
-          <em>a great finish.</em>
+          <em>One shared desk.</em>
         </h1>
         <p>One place to upload, configure, and follow every print.</p>
         <div className="auth-symbol">
@@ -51,11 +51,11 @@ export function AuthPage({ register = false }) {
       </section>
       <section className="auth-form">
         <Heading
-          eyebrow={register ? "Let’s get started" : "Good to see you"}
-          title={register ? "Create your account" : "Welcome back"}
+          eyebrow={register ? "Let’s get started" : "WORKSPACE ACCESS"}
+          title={register ? "Create your account" : "Sign in to the desk"}
         >
           {register
-            ? "Your next print starts here."
+            ? "Submit documents and follow their progress."
             : "Sign in to pick up where you left off."}
         </Heading>
         <ErrorNotice>{error}</ErrorNotice>
@@ -121,8 +121,8 @@ export function AccountPage() {
         <p className="muted">
           Contact your print desk administrator if you need operator access.
         </p>
-        <Link className="button secondary" to="/orders">
-          View your orders
+        <Link className="button secondary" to="/requests">
+          View your requests
         </Link>
       </div>
     </div>

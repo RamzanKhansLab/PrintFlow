@@ -19,10 +19,10 @@ The deployment is one Node Web Service: Express serves `/api/*`, Socket.IO, and 
 
    Do not set frontend API/socket URLs. Render provides `PORT`; the application binds it on `0.0.0.0`. The Blueprint additionally pins the platform runtime via `NODE_VERSION=22`; this is a Render runtime setting, not a frontend setting.
 
-7. **Set Health Check Path** to `/api/health` and deploy. Production startup reports a clear error if `frontend/dist/index.html` is missing. It connects to MongoDB, verifies transaction support, initializes indexes/default pricing, and restores the scheduler before listening.
+7. **Set Health Check Path** to `/api/health` and deploy. Production startup reports a clear error if `frontend/dist/index.html` is missing. It connects to MongoDB, verifies transaction support, initializes indexes, and restores the scheduler before listening.
 8. **Verify health:** open `https://YOUR-SERVICE.onrender.com/api/health`. Expect HTTP 200 with `{"status":"ok"}`. Unavailable database/scheduler state returns 503.
-9. **Verify frontend:** open `/`, `/services` and `/pricing`. Refresh a deep link such as `/admin/dsa`; Express must return the SPA, and React then applies authentication. Missing `/api/...` paths must return a JSON 404, not HTML.
-10. **Verify API:** register and log in, upload a PDF, request a quote, and create an order. In the browser network panel requests must target `/api/...` on the same Render host.
+9. **Verify frontend:** open `/` and `/guide`. Refresh a deep link such as `/admin/dsa`; Express must return the SPA, and React then applies authentication. Missing `/api/...` paths must return a JSON 404, not HTML.
+10. **Verify API:** register and log in, upload a PDF, preview paper requirements, and submit a print request. In the browser network panel requests must target `/api/...` on the same Render host.
 11. **Verify Socket.IO:** use separate customer and staff browser sessions. The staff connection indicator should report connected. A customer should receive their order transitions. Reconnecting reloads data from the API to recover missed events. Socket.IO supports polling and WebSocket transport on this one origin.
 12. **Bootstrap the print desk:** follow the first-admin procedure below, create real printer records, bring them online, and restock paper. Complete a print/QC cycle, then inspect `/admin/dsa`.
 13. **Verify recovery and DSA:** use the [acceptance checklist](acceptance.md) to check heap ordering, ring wrap-around, FIFO QC, incompatible-printer waiting, failure/reprint behavior, and restart reconstruction. These are instructions for the owner, not completed verification results.

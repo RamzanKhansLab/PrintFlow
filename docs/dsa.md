@@ -26,14 +26,14 @@ Each structure directory contains `__init__.py` for package imports. Python 3.10
 
 **Source:** [Queue.py](../backend/src/dsa/queue/Queue.py).
 
-| Operation | Implementation | Time |
-| --- | --- | --- |
-| `enqueue(value)` | Link a new node after tail; initialize head for an empty queue | O(1) |
-| `dequeue()` | Return head value and advance head; empty returns `None` | O(1) |
-| `peek()` | Read head without removal | O(1) |
-| `is_empty()`, `size()` | Read the counter | O(1) |
-| `clear()` | Dequeue until all nodes are unlinked | O(n) |
-| `to_list()` | Walk the linked nodes for inspection | O(n) |
+| Operation              | Implementation                                                 | Time |
+| ---------------------- | -------------------------------------------------------------- | ---- |
+| `enqueue(value)`       | Link a new node after tail; initialize head for an empty queue | O(1) |
+| `dequeue()`            | Return head value and advance head; empty returns `None`       | O(1) |
+| `peek()`               | Read head without removal                                      | O(1) |
+| `is_empty()`, `size()` | Read the counter                                               | O(1) |
+| `clear()`              | Dequeue until all nodes are unlinked                           | O(n) |
+| `to_list()`            | Walk the linked nodes for inspection                           | O(n) |
 
 Space is O(n) nodes, with another O(n) allocation for a list snapshot. Cleanup is explicitly O(n) in this Python version; it is not mislabeled as a constant-time operation.
 
@@ -54,14 +54,14 @@ Example: enqueue A, B, C; peek returns A; dequeue returns A; B becomes the head.
 
 Enqueue appends a leaf and explicitly bubbles it up through parent comparisons/swaps. Dequeue replaces the root with the last leaf and explicitly bubbles down toward the better child. The list is a heap layout, not a sorted list. The implementation uses neither `heapq` nor `sorted()`/`list.sort()`.
 
-| Operation | Time | Extra space |
-| --- | --- | --- |
-| `enqueue(job)` | O(log n), with amortized list append | O(1) apart from list growth |
-| `dequeue()` | O(log n) | O(1) |
-| `peek()`, `is_empty()`, `size()` | O(1) | O(1) |
-| `clear()` | O(n), releasing list entries | O(1) |
-| `to_list()` | O(n), heap layout snapshot | O(n) |
-| `ordered()` | O(n log n), repeatedly dequeue from a copied heap | O(n) |
+| Operation                        | Time                                              | Extra space                 |
+| -------------------------------- | ------------------------------------------------- | --------------------------- |
+| `enqueue(job)`                   | O(log n), with amortized list append              | O(1) apart from list growth |
+| `dequeue()`                      | O(log n)                                          | O(1)                        |
+| `peek()`, `is_empty()`, `size()` | O(1)                                              | O(1)                        |
+| `clear()`                        | O(n), releasing list entries                      | O(1)                        |
+| `to_list()`                      | O(n), heap layout snapshot                        | O(n)                        |
+| `ordered()`                      | O(n log n), repeatedly dequeue from a copied heap | O(n)                        |
 
 Total storage is O(n). Empty dequeue/peek return `None`. The final-element `list.pop()` in the heap is O(1); there is no front-removal `pop(0)`.
 
@@ -92,11 +92,11 @@ self.length -= 1
 
 Enqueue, dequeue, peek, `is_full`, `is_empty` and size are O(1). Storage and initialization/clear cost O(c), where c is capacity. `inspect()` copies c physical slots; `to_list()` traverses n occupied slots. A full enqueue raises `OverflowError`; invalid capacity raises `ValueError`; empty dequeue/peek return `None`.
 
-| Operation, capacity 3 | Slots | Front | Rear | Logical order |
-| --- | --- | --- | --- | --- |
-| Enqueue A, B, C | `[A, B, C]` | 0 | 0 | A, B, C |
-| Dequeue | `[None, B, C]` | 1 | 0 | B, C |
-| Enqueue D | `[D, B, C]` | 1 | 1 | B, C, D |
+| Operation, capacity 3 | Slots          | Front | Rear | Logical order |
+| --------------------- | -------------- | ----- | ---- | ------------- |
+| Enqueue A, B, C       | `[A, B, C]`    | 0     | 0    | A, B, C       |
+| Dequeue               | `[None, B, C]` | 1     | 0    | B, C          |
+| Enqueue D             | `[D, B, C]`    | 1     | 1    | B, C, D       |
 
 Each real printer has one Python ring of capacity 1–20. The active print is stored separately from its bounded waiting buffer. The scheduler uses ring enqueue during planning. Node commits a printer start and paper deduction before Python dequeues the head in `start_print()`.
 

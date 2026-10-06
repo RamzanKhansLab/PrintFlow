@@ -3,25 +3,18 @@
 ## Single-origin application
 
 ```text
-React browser application
-  |  fetch('/api/...')       io() + session cookie
-  +----------------------+----------------------+
+React browser (relative /api requests + authenticated Socket.IO)
                          |
-                   HTTP server
-              Express 5 + Socket.IO
-                 /             \
-        frontend/dist       API route layer
-        SPA fallback       auth + Zod validation
-                                 |
-                          Business services
-                  /              |             \
-             File service    Pricing engine    Workflow
-                  |              |                |
-                GridFS      PricingRule       PrintScheduler
-                  |              |                |
-                  +--------------+----------------+
-                                 |
-                            MongoDB Atlas
+                 Express + Socket.IO
+                   /            \
+          frontend/dist     API + business services
+           SPA fallback       /      |       \
+                         GridFS   MongoDB    Node scheduler service
+                                               |
+                                   private stdin/stdout JSON lines
+                                               |
+                                     Python PrintScheduler
+                                     heap / ring / linked FIFO
 ```
 
 `app.js` mounts `/api` before static assets and the SPA fallback. Unknown API endpoints remain JSON 404s. `server.js` shares one HTTP listener with Socket.IO. In development Vite proxies both API and socket traffic, so browser requests still appear same-origin. Workflow uses `PrintSchedulerService` in Node, which calls the Python `PrintScheduler` over private stdin/stdout JSON messages. Python owns the queues and routing; Node owns database transactions and sockets. Both processes run in one Render service.
@@ -62,17 +55,17 @@ The printer engine is this routing and operator station workflow. It does not im
 
 ## Responsibilities
 
-| Layer                              | Responsibility                                                               |
-| ---------------------------------- | ---------------------------------------------------------------------------- |
-| `frontend/src/pages`               | Customer flows, operator station controls, admin tools and DSA visualization |
-| `frontend/src/services/api.js`     | Same-origin JSON/form requests; common error handling                        |
-| `frontend/src/store`               | Authentication and Socket.IO invalidation                                    |
-| `backend/src/routes/api.js`        | Endpoint contracts, role guards, request/response handling                   |
-| `backend/src/services/workflow.js` | Validated state transitions and MongoDB transactions                         |
-| `backend/src/pricing/quote.js`     | Page selection and database-rule pricing                                     |
-| `backend/src/dsa/scheduler`        | Serialized runtime orchestration, dispatch, reconstruction                   |
-| Other `dsa` folders                | Independent queue algorithms; no database or UI dependencies                 |
-| `backend/src/models/index.js`      | Durable records and relationships                                            |
+| Layer                              | Responsibility                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------- |
+| `frontend/src/pages`               | Member print requests, operator station controls, admin tools and DSA visualization |
+| `frontend/src/services/api.js`     | Same-origin JSON/form requests; common error handling                               |
+| `frontend/src/store`               | Authentication and Socket.IO invalidation                                           |
+| `backend/src/routes/api.js`        | Endpoint contracts, role guards, request/response handling                          |
+| `backend/src/services/workflow.js` | Validated state transitions and MongoDB transactions                                |
+| `backend/src/printing/plan.js`     | Page selection and paper-sheet calculation                                          |
+| `backend/src/dsa/scheduler`        | Python scheduling, routing and reconstruction                                       |
+| Other `dsa` folders                | Independent queue algorithms; no database or UI dependencies                        |
+| `backend/src/models/index.js`      | Durable records and relationships                                                   |
 
 ## Authentication and real-time events
 

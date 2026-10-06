@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import { Server } from "socket.io";
 import { readConfig } from "./config/env.js";
 import * as models from "./models/index.js";
-import { ensurePricing } from "./pricing/quote.js";
 import { authentication } from "./middleware/auth.js";
 import { configureSockets } from "./sockets/index.js";
 import { PrintSchedulerService } from "./services/print-scheduler.js";
@@ -22,7 +21,6 @@ async function main() {
       "PrintFlow requires MongoDB Atlas or a replica set for transactions",
     );
   await Promise.all(Object.values(models).map((model) => model.init()));
-  await ensurePricing();
   let app;
   const server = createServer((req, res) => app(req, res));
   const io = new Server(server, {
@@ -82,7 +80,7 @@ main().catch(async (error) => {
   console.error(
     error.name === "Error"
       ? error.message
-      : `Startup failed: ${error.message || error.name}. Check MongoDB access and Python availability.`,
+      : `Startup failed: ${error.name}. Check MongoDB access and Python availability.`,
   );
   await scheduler?.close();
   await mongoose.disconnect();

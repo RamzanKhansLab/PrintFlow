@@ -1,19 +1,21 @@
-# PrintFlow — Smart Printer Job Management System
+# PrintFlow - Shared Print Workspace
 
 A **BE Engineering 5th Semester mini project developed for the Data Structures and Algorithms (DSA) subject**.
 
-Print desks often manage uploads, print preferences, and urgent requests separately. PrintFlow puts them in one workflow: customers upload documents and receive a quote; operators route, print, check, and complete jobs. Its objective is to make scheduling understandable, persistent, and demonstrably powered by custom data structures.
+PrintFlow is a shared printing tool for printing shops, colleges, offices, libraries and labs. Members submit documents and print instructions; operators run printer stations and quality checks; administrators manage equipment and access. One installation serves one shared print desk. Scheduling is powered by custom Python data structures.
+
+The interface combines Y2K chrome panels, digital typography and grids with Memphis colors, geometric shapes and bold borders. The launchpad opens practical tools for submitting, tracking and processing print requests. There are no pricing pages, paid plans, quotes, checkout or billing features.
 
 ## Features
 
 - PDF, PNG and JPEG upload with format validation and PDF page counting; files persist in MongoDB GridFS.
 - Print configuration, selected page ranges, copies, color, paper size, duplex and binding.
-- Live quotes calculated from editable database pricing rules.
-- Authenticated order tracking and cancellation before printing starts.
+- Server-calculated page, copy, impression and paper-sheet previews.
+- Authenticated request tracking and cancellation before printing starts.
 - Custom binary-heap scheduling, bounded circular printer buffers, and a linked FIFO for quality checks.
 - Compatibility-based routing across online printers, operator-reported progress, QC and reprint handling.
-- Socket.IO updates, customer/operator/admin roles, paper inventory, and an activity log.
-- Interactive `/admin/dsa` lab using the **same classes as the live workflow**.
+- Socket.IO updates, member/operator/admin access, paper inventory, and an activity log.
+- Interactive `/admin/dsa` lab using the **same Python classes as the live workflow**.
 
 Printing is **operator-controlled**: the operator downloads the document, uses the physical printer, and records progress/results. Printer status is manually reported. Direct printer drivers, automatic document spooling, online payments, delivery, DOCX conversion, password recovery, and antivirus scanning are not implemented.
 
@@ -42,9 +44,8 @@ Browser (React SPA, fetch('/api/...'), io())
                                     |
                              Business services
                                     |
-                     Local Python DSA worker
-                                    |
-                      MongoDB Atlas + GridFS
+                    /                       \
+       Local Python DSA worker       MongoDB Atlas + GridFS
 ```
 
 ```text
@@ -54,11 +55,11 @@ backend/src/
   middleware/         Authentication, roles, validation, errors
   models/             Persistent MongoDB schemas
   routes/             Implemented API endpoints
-  services/           Orders, files, MongoDB integration, Python bridge
-  pricing/            Database-driven quote calculation
+  services/           Print workflow, files, MongoDB integration, Python bridge
+  printing/           Page selection and paper requirements
   dsa/                Python queues, scheduler, worker and lab sandbox
   sockets/            Authenticated real-time rooms and events
-  scripts/            Existing-account administrator promotion
+  scripts/            Administrator promotion and Python availability check
   app.js              API routing and production SPA serving
   server.js           Startup, recovery, HTTP/Socket.IO lifecycle
 docs/                 Setup, architecture, DSA and academic report
@@ -84,6 +85,8 @@ Edit `backend/.env`. Only backend settings are used:
 | `NODE_ENV`    | `development` locally; `production` on Render for secure cookies |
 | `PORT`        | Optional locally, defaults to `5000`; Render supplies it         |
 
+Optional `PYTHON_BIN` selects a Python executable when it is not on PATH; see [Python integration](docs/python-dsa.md).
+
 Generate a secret with `node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"`. In Atlas, create a database user, authorize your development IP and Render outbound addresses, and copy the driver connection URI. See [setup](docs/setup.md) for details. There is **no frontend `.env`**, production frontend URL setting, or optional third-party service to configure.
 
 ```powershell
@@ -98,7 +101,7 @@ Register your first account, then promote that existing account:
 npm.cmd run admin -- your-email@example.com
 ```
 
-Sign out and sign in again. In the workspace, add a printer, set it online, and add paper inventory. New databases contain default editable pricing rules, **no sample accounts, orders, printers, or inventory**.
+Sign out and sign in again. In the workspace, add a printer, set it online, and add paper inventory. New databases have **no sample accounts, requests, printers, inventory or seeded configuration**.
 
 ## Build and single-service deployment
 
@@ -126,10 +129,12 @@ The backend binds `0.0.0.0` on Render's `PORT`. Express handles `/api/*` before 
 
 | Audience           | Routes                                                                                                                                  |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Public             | `/`, `/services`, `/pricing`, `/login`, `/register`                                                                                     |
-| Signed-in accounts | `/print`, `/track`, `/orders`, `/orders/:id`, `/account`                                                                                |
+| Public             | `/`, `/guide`, `/login`, `/register`                                                                                                    |
+| Signed-in accounts | `/print`, `/track`, `/requests`, `/requests/:id`, `/account`                                                                            |
 | Operator/admin     | `/admin`, `/admin/dashboard`, `/admin/queue`, `/admin/printers`, `/admin/jobs`, `/admin/inventory`, `/admin/dsa`, `/station/:printerId` |
-| Admin              | `/admin/pricing`, `/admin/users`, `/admin/audit`                                                                                        |
+| Admin              | `/admin/users`, `/admin/audit`                                                                                                          |
+
+The browser redirects old `/orders` links to `/requests` and `/services` to `/guide`. The `/api/orders` contract and stored `customer` role remain for compatibility; the UI calls these print requests and members. Old monetary snapshots are excluded from request responses; old database records are not deleted.
 
 ## Documentation
 
@@ -146,4 +151,4 @@ Coding and documentation were prepared in the initially empty target folder. App
 
 The scheduler is intended for one Node process with one local Python worker. Render free instances can sleep/restart; queues recover from MongoDB, but continuous availability is not promised. Stop operator activity while deploying; shared active-active schedulers are outside this project. Files use Atlas storage rather than Render's temporary filesystem.
 
-Future scope: a physical printer agent with acknowledgements, document conversion, email/password recovery, payment integration, stock corrections and consumables, durable event replay, more advanced scheduling, automated verification, and coordinated multi-instance execution.
+Future scope: a physical printer agent with acknowledgements, document conversion, email/password recovery, stock corrections and consumables, durable event replay, more advanced scheduling, automated verification, and coordinated multi-instance execution.

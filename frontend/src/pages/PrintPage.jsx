@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, FileText, Upload } from "lucide-react";
+import { ArrowUpRight, FileText, Upload, Layers, Check } from "lucide-react";
 import { ErrorNotice, Field, Heading } from "../components/ui";
 import { useResource } from "../hooks/useResource";
-import { api, money } from "../services/api";
+import { api } from "../services/api";
 
 const initialConfig = {
   copies: 1,
@@ -20,48 +20,51 @@ export function PrintPage() {
   const [document, setDocument] = useState(null);
   const [config, setConfig] = useState(initialConfig);
   const [deadline, setDeadline] = useState("");
-  const [quote, setQuote] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
-  const [quoteError, setQuoteError] = useState("");
+  const [previewError, setPreviewError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [quoting, setQuoting] = useState(false);
-  const [quoteRevision, setQuoteRevision] = useState(0);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [previewRevision, setPreviewRevision] = useState(0);
   const requestId = useRef(crypto.randomUUID());
   const update = (name, value) => {
-    setQuote(null);
+    setSummary(null);
     setConfig((current) => ({ ...current, [name]: value }));
   };
   useEffect(() => {
-    setQuote(null);
-    setQuoteError("");
+    setSummary(null);
+    setPreviewError("");
     if (!document) {
-      setQuoting(false);
+      setAnalyzing(false);
       return;
     }
     const controller = new AbortController();
-    setQuoting(true);
+    setAnalyzing(true);
     const timer = setTimeout(() => {
-      api("/pricing/quote", {
+      api("/print/preview", {
         method: "POST",
         body: { documentId: document._id, config },
         signal: controller.signal,
       })
-        .then((result) => setQuote(result.data))
+        .then((result) => {
+          if (!controller.signal.aborted) setSummary(result.data);
+        })
         .catch((failure) => {
-          if (failure.name !== "AbortError") setQuoteError(failure.message);
+          if (failure.name !== "AbortError") setPreviewError(failure.message);
         })
         .finally(() => {
-          if (!controller.signal.aborted) setQuoting(false);
+          if (!controller.signal.aborted) setAnalyzing(false);
         });
     }, 350);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [document, config, quoteRevision]);
+  }, [document, config, previewRevision]);
   async function upload(event) {
     const file = event.target.files[0];
     if (!file) return;
+    const input = event.target;
     setBusy(true);
     setError("");
     try {
@@ -69,17 +72,19 @@ export function PrintPage() {
         throw new Error("Choose a file of 10 MB or smaller");
       const body = new FormData();
       body.append("file", file);
-      setDocument((await api("/files", { method: "POST", body })).data);
+      const uploaded = (await api("/files", { method: "POST", body })).data;
+      setSummary(null);
+      setDocument(uploaded);
       library.reload();
     } catch (failure) {
       setError(failure.message);
     } finally {
       setBusy(false);
-      event.target.value = "";
+      input.value = "";
     }
   }
-  async function placeOrder() {
-    if (!quote || !document) return;
+  async function submitRequest() {
+    if (!summary || !document) return;
     setBusy(true);
     setError("");
     try {
@@ -89,34 +94,34 @@ export function PrintPage() {
           documentId: document._id,
           config,
           deadline: deadline ? new Date(deadline).toISOString() : null,
-          expectedTotalPaise: quote.totalPaise,
           clientRequestId: requestId.current,
         },
       });
-      navigate(`/orders/${result.data.order._id}`);
+      navigate(`/requests/${result.data.order._id}`);
     } catch (failure) {
       setError(failure.message);
-      if (failure.status === 409) setQuoteRevision((value) => value + 1);
     } finally {
       setBusy(false);
     }
   }
   return (
     <div className="container section">
-      <Heading eyebrow="Let’s put it on paper" title="Start a new print">
-        A few choices, a clear quote, and you’re in the queue.
+      <Heading eyebrow="SUBMIT / NEW REQUEST" title="Put it in the queue.">
+        Upload a document, set the instructions, and send it to your print desk.
       </Heading>
       <ErrorNotice>{error || library.error}</ErrorNotice>
       <div className="print-layout">
         <div className="form-stack">
           <section className="card">
             <h2 className="step-heading">
-              <span>01</span>Your document
+              <span>01</span>Pick your document <FileText size={21} />
             </h2>
             <label className={`upload-zone ${busy ? "disabled" : ""}`}>
-              <Upload size={28} />
-              <strong>{busy ? "Working…" : "Choose a document"}</strong>
-              <span>PDF, PNG or JPEG · up to 10 MB</span>
+              <span className="upload-icon">
+                <Upload size={28} />
+              </span>
+              <strong>{busy ? "Working…" : "Choose a file to print"}</strong>
+              <span>PDF / PNG / JPEG · MAX 10 MB</span>
               <input
                 type="file"
                 accept="application/pdf,image/png,image/jpeg"
@@ -125,12 +130,12 @@ export function PrintPage() {
               />
             </label>
             {library.data?.length > 0 && (
-              <Field label="Or use a recent upload">
+              <Field label="Or select a recent upload">
                 <select
                   value={document?._id || ""}
                   disabled={busy}
                   onChange={(event) => {
-                    setQuote(null);
+                    setSummary(null);
                     setDocument(
                       library.data.find(
                         (file) => file._id === event.target.value,
@@ -149,7 +154,7 @@ export function PrintPage() {
             )}
             {document && (
               <div className="file-summary">
-                <FileText size={24} />
+                <FileText size={25} />
                 <div>
                   <strong>{document.name}</strong>
                   <small>
@@ -161,17 +166,17 @@ export function PrintPage() {
                   href={`/api/files/${document._id}/download`}
                   className="text-link"
                 >
-                  Download
+                  Download ↗
                 </a>
               </div>
             )}
           </section>
           <section className="card">
             <h2 className="step-heading">
-              <span>02</span>Make it yours
+              <span>02</span>Print instructions <Layers size={21} />
             </h2>
             <fieldset disabled={busy} className="form-grid">
-              <Field label="Print color">
+              <Field label="Color mode">
                 <select
                   value={String(config.color)}
                   onChange={(event) =>
@@ -192,7 +197,7 @@ export function PrintPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Sides">
+              <Field label="Print sides">
                 <select
                   value={String(config.duplex)}
                   onChange={(event) =>
@@ -203,7 +208,7 @@ export function PrintPage() {
                   <option value="true">Double-sided</option>
                 </select>
               </Field>
-              <Field label="Copies">
+              <Field label="Number of copies">
                 <input
                   type="number"
                   min="1"
@@ -215,8 +220,8 @@ export function PrintPage() {
                 />
               </Field>
               <Field
-                label="Page range"
-                hint="Leave empty for all pages. Example: 1-3,5"
+                label="Page selection"
+                hint="Empty = all pages. For a selection, use 1-3,5."
               >
                 <input
                   value={config.pageRange}
@@ -225,7 +230,7 @@ export function PrintPage() {
                   onChange={(event) => update("pageRange", event.target.value)}
                 />
               </Field>
-              <Field label="Binding">
+              <Field label="Finishing">
                 <select
                   value={config.binding}
                   onChange={(event) => update("binding", event.target.value)}
@@ -239,16 +244,16 @@ export function PrintPage() {
           </section>
           <section className="card">
             <h2 className="step-heading">
-              <span>03</span>Set the pace
+              <span>03</span>Schedule it <Check size={21} />
             </h2>
             <fieldset disabled={busy} className="form-grid">
-              <Field label="Service">
+              <Field label="Scheduling priority">
                 <select
                   value={config.urgency}
                   onChange={(event) => update("urgency", event.target.value)}
                 >
                   <option value="standard">Standard</option>
-                  <option value="rush">Rush · priority handling</option>
+                  <option value="rush">High priority</option>
                 </select>
               </Field>
               <Field label="Requested deadline (optional)">
@@ -260,64 +265,79 @@ export function PrintPage() {
               </Field>
             </fieldset>
             <p className="muted small-text">
-              A requested deadline helps schedule your job; it isn’t a
-              guaranteed completion time.
+              Priority helps the scheduler route your request. A deadline is a
+              request, not a guaranteed completion time.
             </p>
           </section>
         </div>
-        <aside className="quote-card card">
-          <span className="eyebrow">Your print, at a glance</span>
-          <h2>Order summary</h2>
-          <ErrorNotice>{quoteError}</ErrorNotice>
-          {quote ? (
-            <>
-              <div className="quote-meta">
-                {quote.pages} selected pages × {quote.copies} copies
-                <br />
-                {quote.sheets} sheets · {config.paperSize}
-              </div>
-              {[
-                ["Printing", quote.printPaise],
-                ["Binding", quote.bindingPaise],
-                ["Rush service", quote.rushPaise],
-                ["Tax", quote.taxPaise],
-              ].map(([label, value]) => (
-                <div className="price-line" key={label}>
-                  <span>{label}</span>
-                  <strong>{money(value)}</strong>
+        <aside className="request-summary card">
+          <div className="window-bar">
+            <span>PRINT TICKET / PREVIEW</span>
+            <span aria-hidden="true">↗</span>
+          </div>
+          <div className="ticket-body">
+            <span className="eyebrow">READY WHEN YOU ARE</span>
+            <h2>Your print ticket.</h2>
+            <ErrorNotice>{previewError}</ErrorNotice>
+            {summary ? (
+              <>
+                <div className="paper-count">
+                  <strong>{summary.sheets}</strong>
+                  <span>
+                    SHEETS
+                    <br />
+                    REQUIRED
+                  </span>
+                  <Layers size={27} />
                 </div>
-              ))}
-              <div className="quote-total">
-                <span>Total</span>
-                <strong>{money(quote.totalPaise)}</strong>
+                <dl className="detail-list">
+                  <dt>Selected pages</dt>
+                  <dd>{summary.pages}</dd>
+                  <dt>Copies</dt>
+                  <dd>{summary.copies}</dd>
+                  <dt>Printed sides</dt>
+                  <dd>{summary.impressions}</dd>
+                  <dt>Paper</dt>
+                  <dd>{config.paperSize}</dd>
+                  <dt>Color</dt>
+                  <dd>{config.color ? "Full color" : "Monochrome"}</dd>
+                  <dt>Priority</dt>
+                  <dd>{config.urgency === "rush" ? "High" : "Standard"}</dd>
+                </dl>
+              </>
+            ) : (
+              <div className="summary-empty">
+                <FileText size={34} />
+                <p>
+                  {analyzing
+                    ? "Checking page selection and paper requirements…"
+                    : "Choose a document to prepare your ticket."}
+                </p>
               </div>
-            </>
-          ) : (
-            <p className="muted">
-              {quoting
-                ? "Calculating your quote…"
-                : "Choose a document to see your live quote."}
+            )}
+            <button
+              className="button full"
+              disabled={!summary || busy || analyzing}
+              onClick={submitRequest}
+            >
+              {busy ? "Submitting…" : "Send to print queue"}
+              <ArrowUpRight size={18} />
+            </button>
+            {previewError && (
+              <button
+                className="text-button full"
+                disabled={!document || busy}
+                onClick={() => setPreviewRevision((value) => value + 1)}
+              >
+                Retry print preview
+              </button>
+            )}
+            <p className="muted small-text">
+              Your operator will print the document and record the quality
+              check. Track the request from your workspace.
             </p>
-          )}
-          <button
-            className="button full"
-            disabled={!quote || busy || quoting}
-            onClick={placeOrder}
-          >
-            {busy ? "Please wait…" : "Place order"}
-            <ArrowRight size={18} />
-          </button>
-          <button
-            className="text-button full"
-            onClick={() => setQuoteRevision((value) => value + 1)}
-            disabled={!document || busy}
-          >
-            Refresh quote
-          </button>
-          <p className="muted small-text">
-            Your quote is saved with the order. Payment is handled separately at
-            the print desk.
-          </p>
+            <div className="ticket-barcode" aria-hidden="true" />
+          </div>
         </aside>
       </div>
     </div>

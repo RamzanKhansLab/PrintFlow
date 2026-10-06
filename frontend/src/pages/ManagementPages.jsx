@@ -90,127 +90,6 @@ export function InventoryPage() {
     </>
   );
 }
-export function PricingAdminPage() {
-  const resource = useResource("/pricing");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function save(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    setMessage("");
-    const body = {};
-    for (const [key, value] of new FormData(event.currentTarget)) {
-      const [group, field] = key.split(".");
-      if (field) {
-        body[group] ||= {};
-        body[group][field] = Number(value);
-      } else body[key] = Number(value);
-    }
-    body.binding.none = 0;
-    try {
-      await api("/pricing", { method: "PUT", body });
-      setMessage("Pricing rules saved. New orders use these rates.");
-      resource.reload();
-    } catch (failure) {
-      setError(failure.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  const rules = resource.data;
-  const fields = rules
-    ? [
-        ["basePage", "Base price per page (₹)", rules.basePage, 0, 100000],
-        [
-          "colorMultiplier",
-          "Color multiplier",
-          rules.colorMultiplier,
-          0.1,
-          100,
-        ],
-        [
-          "duplexMultiplier",
-          "Duplex multiplier",
-          rules.duplexMultiplier,
-          0.1,
-          100,
-        ],
-        ...["A4", "A3", "Letter"].map((size) => [
-          `paperMultipliers.${size}`,
-          `${size} paper multiplier`,
-          rules.paperMultipliers[size],
-          0.1,
-          100,
-        ]),
-        [
-          "binding.staple",
-          "Stapling per copy (₹)",
-          rules.binding.staple,
-          0,
-          100000,
-        ],
-        [
-          "binding.spiral",
-          "Spiral binding per copy (₹)",
-          rules.binding.spiral,
-          0,
-          100000,
-        ],
-        ["rushMultiplier", "Rush multiplier", rules.rushMultiplier, 1, 100],
-        ["taxPercent", "Tax (%)", rules.taxPercent, 0, 100],
-      ]
-    : [];
-  return (
-    <>
-      <Heading eyebrow="Backend-driven quotes" title="Pricing rules">
-        All amounts are in INR. Existing orders retain their saved quotes.
-      </Heading>
-      <ErrorNotice>{error || resource.error}</ErrorNotice>
-      {resource.loading ? (
-        <Loading />
-      ) : (
-        rules && (
-          <form
-            key={rules.updatedAt}
-            className="card form-stack"
-            onSubmit={save}
-          >
-            <fieldset className="form-grid" disabled={busy}>
-              {fields.map(([name, label, value, min, max]) => (
-                <Field label={label} key={name}>
-                  <input
-                    type="number"
-                    name={name}
-                    required
-                    step="0.01"
-                    min={min}
-                    max={max}
-                    defaultValue={value}
-                  />
-                </Field>
-              ))}
-            </fieldset>
-            <p className="muted">
-              No binding always costs ₹0. Rush is applied to printing plus
-              binding; tax is calculated last. No delivery or discount fees are
-              applied.
-            </p>
-            <button className="button" disabled={busy}>
-              {busy ? "Saving…" : "Save pricing rules"}
-            </button>
-            {message && (
-              <p role="status" className="success-text">
-                {message}
-              </p>
-            )}
-          </form>
-        )
-      )}
-    </>
-  );
-}
 export function UsersPage() {
   const { user: currentUser } = useAuth();
   const [page, setPage] = useState(1);
@@ -232,8 +111,8 @@ export function UsersPage() {
   return (
     <>
       <Heading eyebrow="People at the print desk" title="Accounts & access">
-        Customers place orders. Operators run the desk. Administrators manage
-        access and pricing.
+        Members submit print requests. Operators run the stations.
+        Administrators manage access.
       </Heading>
       <ErrorNotice>{error || resource.error}</ErrorNotice>
       {resource.loading ? (
@@ -263,7 +142,9 @@ export function UsersPage() {
                       onChange={(event) => changeRole(user, event.target.value)}
                     >
                       {["customer", "operator", "admin"].map((role) => (
-                        <option key={role}>{role}</option>
+                        <option key={role} value={role}>
+                          {role === "customer" ? "member" : role}
+                        </option>
                       ))}
                     </select>
                   </td>
@@ -295,7 +176,7 @@ export function AuditPage() {
           </button>
         }
       >
-        Workflow, inventory, pricing, and role changes recorded by the backend.
+        Workflow, inventory, and role changes recorded by the backend.
       </Heading>
       <ErrorNotice>{resource.error}</ErrorNotice>
       {resource.loading ? (

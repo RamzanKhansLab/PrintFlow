@@ -13,14 +13,16 @@ Source of truth: [`backend/src/routes/api.js`](../backend/src/routes/api.js). Al
 - Rate limits: 600 API requests per 15 minutes per IP, shared login/register limit 20 per 15 minutes per IP, and 15 uploads per minute per IP. These limits are process-local.
 - Browser mutations must be same-origin. Unknown `/api/*` returns JSON 404 and never the SPA.
 
+Browser screens call an Order a **print request**, with links under `/requests`. Existing `/api/orders`, `order:status`, and database field names remain stable. Older requests can omit `printSummary`; the UI falls back to the original job sheet count where available. Monetary snapshots are excluded from responses.
+
 ## Response objects
 
 | Name           | Important fields                                                                                                                                                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | User           | `_id`, `name`, `email`, `role`; list responses also include timestamps; never `passwordHash`                                                                                                                   |
 | Document       | `_id`, `owner`, `fileId`, `name`, `mime`, `bytes`, `pages`, timestamps                                                                                                                                         |
-| Quote          | `currency`, `pages`, `copies`, `impressions`, `sheets`, `printPaise`, `bindingPaise`, `rushPaise`, `subtotalPaise`, `taxPaise`, `totalPaise`, `pricingUpdatedAt`                                               |
-| Order          | `_id`, `reference`, `customer`, `document`, `config`, `quote`, `deadline`, `status`, `clientRequestId`, timestamps                                                                                             |
+| PrintSummary   | `pages`, `copies`, `impressions`, `sheets`                                                                                                                                                                     |
+| Order          | `_id`, `reference`, `customer`, `document`, `config`, `printSummary`, `deadline`, `status`, `clientRequestId`, timestamps                                                                                      |
 | Job            | `_id`, `order`, `customer`, `document`, `label`, `config`, `sheets`, `priorityScore`, `deadline`, `status`, `printer`, `progress`, lifecycle timestamps, `failureReason`, `qcNotes`, `reprintOf`, `reprintJob` |
 | Printer        | `_id`, `name`, `color`, `duplex`, `paperSizes`, `capacity`, `status`, timestamps                                                                                                                               |
 | Inventory      | `_id`, `paperSize`, `sheets`, timestamps                                                                                                                                                                       |
@@ -38,7 +40,7 @@ Each station snapshot has `{ printer, buffer, active }`. Buffer has `{ capacity,
 | `POST /api/auth/logout`   | Signed-in             | No body                                                                                        | 200 `{data:{signedOut:true}}`; clears this browser's cookie and disconnects the user's sockets | 401 expired session                                                  |
 | `GET /api/auth/me`        | Signed-in             | None                                                                                           | 200 `{data: User}`                                                                             | 401 expired session                                                  |
 
-Registration always creates a customer. JWTs last eight hours. There is no password reset, account editing, token refresh, or public administrator registration endpoint. Logout clears the cookie; there is no persisted token revocation list.
+Registration creates a member, stored as role `customer` for compatibility. JWTs last eight hours. There is no password reset, account editing, token refresh, or public administrator registration endpoint. Logout clears the cookie; there is no persisted token revocation list.
 
 ## Files
 
@@ -50,7 +52,7 @@ Registration always creates a customer. JWTs last eight hours. There is no passw
 
 PNG/JPEG are one page each. Downloads accept a Document ID, not the GridFS file ID. Office documents are not supported.
 
-## Pricing
+## Print preview
 
 Print configuration:
 
@@ -68,52 +70,36 @@ Print configuration:
 
 Copies: 1–500. Paper: `A4|A3|Letter`. Page range: blank for all pages or comma-separated page numbers/inclusive ranges such as `1-3,5`; ≤500 characters, valid within the uploaded document. Binding: `none|staple|spiral`. Urgency: `standard|rush`. Configuration objects reject unknown fields.
 
-| Method / endpoint         | Authentication / role   | Request                              | Response                  | Specific errors                                                                               |
-| ------------------------- | ----------------------- | ------------------------------------ | ------------------------- | --------------------------------------------------------------------------------------------- |
-| `GET /api/pricing`        | Public                  | None                                 | 200 `{data: PricingRule}` | 500 database failure                                                                          |
-| `POST /api/pricing/quote` | Signed-in, own document | `{documentId,config}`                | 200 `{data: Quote}`       | 400 invalid config/range or unsafe numeric total, 404 document absent/not owned, 503 no rules |
-| `PUT /api/pricing`        | Admin                   | Complete editable rules object below | 200 `{data: PricingRule}` | 400 invalid/extra values; 403 role                                                            |
+| Method / endpoint         | Authentication / role   | Request               | Response                   | Specific errors                                         |
+| ------------------------- | ----------------------- | --------------------- | -------------------------- | ------------------------------------------------------- |
+| `POST /api/print/preview` | Signed-in, own document | `{documentId,config}` | 200 `{data: PrintSummary}` | 400 invalid config/range, 404 document absent/not owned |
 
-Editable rule body (values shown are the initial defaults, not a request result):
+`impressions = pages * copies`. `sheets = ceil(pages / (duplex ? 2 : 1)) * copies`; each copy starts on a new sheet. The server recomputes these counts on submission. High priority is stored as `urgency: "rush"`; it affects scheduling only. Pricing endpoints and monetary values have been removed.
 
-```json
-{
-  "basePage": 2,
-  "colorMultiplier": 5,
-  "duplexMultiplier": 1,
-  "paperMultipliers": { "A4": 1, "A3": 2, "Letter": 1 },
-  "binding": { "none": 0, "staple": 5, "spiral": 40 },
-  "rushMultiplier": 1.5,
-  "taxPercent": 0
-}
-```
+## Print requests (compatible Orders API)
 
-Prices are INR, 0–100,000; multipliers 0.1–100 except rush 1–100; tax 0–100%. `binding.none` must be zero. Currency is fixed to INR. Monetary quote output uses integer paise. Rule updates do not change existing saved quotes.
+| Method / endpoint                  | Authentication / role                   | Request                                         | Response                                                         | Specific errors                                                                |
+| ---------------------------------- | --------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `POST /api/orders`                 | Signed-in, own document                 | `{documentId,config,deadline?,clientRequestId}` | 201 `{data:{order:Order,job:Job}}`                               | 400 invalid UUID/config/expired deadline, 404 document, 409 duplicate conflict |
+| `GET /api/orders`                  | Signed-in; customer sees own, staff all | `?page=1&limit=20`                              | Paginated Order list; `document` populated with `_id,name,pages` | 400 pagination                                                                 |
+| `GET /api/orders/track/:reference` | Owner or staff                          | `PF-` plus 8 hex characters, case-insensitive   | 200 `{data:{order:Order,jobs:Job[]}}`; document populated        | 400 bad reference, 404 unavailable order                                       |
+| `GET /api/orders/:id`              | Owner or staff                          | Order ID                                        | Same detail response, jobs oldest-first                          | 400 ID, 404 unavailable order                                                  |
+| `POST /api/orders/:id/cancel`      | Owner or staff                          | Order ID; no body                               | 200 `{data:{order:Order,job:Job}}` with CANCELLED states         | 404 order, 409 order already started/not cancellable                           |
 
-## Orders
-
-| Method / endpoint                  | Authentication / role                   | Request                                                            | Response                                                         | Specific errors                                                                              |
-| ---------------------------------- | --------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `POST /api/orders`                 | Signed-in, own document                 | `{documentId,config,deadline?,clientRequestId,expectedTotalPaise}` | 201 `{data:{order:Order,job:Job}}`                               | 400 invalid UUID/config/expired deadline, 404 document, 409 total changed/duplicate conflict |
-| `GET /api/orders`                  | Signed-in; customer sees own, staff all | `?page=1&limit=20`                                                 | Paginated Order list; `document` populated with `_id,name,pages` | 400 pagination                                                                               |
-| `GET /api/orders/track/:reference` | Owner or staff                          | `PF-` plus 8 hex characters, case-insensitive                      | 200 `{data:{order:Order,jobs:Job[]}}`; document populated        | 400 bad reference, 404 unavailable order                                                     |
-| `GET /api/orders/:id`              | Owner or staff                          | Order ID                                                           | Same detail response, jobs oldest-first                          | 400 ID, 404 unavailable order                                                                |
-| `POST /api/orders/:id/cancel`      | Owner or staff                          | Order ID; no body                                                  | 200 `{data:{order:Order,job:Job}}` with CANCELLED states         | 404 order, 409 order already started/not cancellable                                         |
-
-`deadline` is null/omitted or an ISO datetime with timezone in the future. `clientRequestId` must be a UUID, generated once per order submission (the browser uses `crypto.randomUUID()`). Reusing it for that customer returns the original committed order rather than making a duplicate; use a new UUID for a different order. `expectedTotalPaise` must match the freshly recalculated backend quote. Creation returns its creation snapshot; a scheduler assignment may already be reflected in subsequent GET responses/events.
+`deadline` is null/omitted or an ISO datetime with timezone in the future. `clientRequestId` must be a UUID, generated once per order submission (the browser uses `crypto.randomUUID()`). Reusing it for that customer returns the original committed order rather than making a duplicate; use a new UUID for a different order. Strict submission validation accepts only the documented fields. The backend always calculates `printSummary` itself. Creation returns its creation snapshot; a scheduler assignment may already be reflected in subsequent GET responses/events.
 
 ## Queues, printers and job lifecycle
 
 All endpoints in this table require **staff**, except adding a printer requires **admin**.
 
 | Method / endpoint                | Body / parameters                                                                            | Response                                                                | Specific errors                                                      |
-| -------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------- | --------------------------------- |
+| -------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `GET /api/queue`                 | None                                                                                         | 200 `{data: QueueSnapshot}`                                             | 503 recovering scheduler                                             |
 | `POST /api/queue/schedule`       | None                                                                                         | 200 `{data: QueueSnapshot}` after dispatch                              | Database/recovery failures                                           |
 | `POST /api/queue/qc/start`       | None                                                                                         | 200 `{data: Job}` in QUALITY_CHECK                                      | 409 QC busy/empty/changed                                            |
 | `GET /api/printers`              | None                                                                                         | 200 `{data: Printer[]}`, name order                                     | Database failure                                                     |
 | `POST /api/printers` — admin     | `{name,color,duplex,paperSizes,capacity}`; name 2–60 chars, 1–3 paper entries, capacity 1–20 | 201 `{data: Printer}`, initially offline                                | 400 validation, 409 duplicate name                                   |
-| `PATCH /api/printers/:id/status` | `{status:"online"                                                                            | "offline"                                                               | "error"}`                                                            | 200 `{data: Printer}` | 400 input/ID, 404 unknown station |
+| `PATCH /api/printers/:id/status` | `{status}`: `online`, `offline` or `error`                                                   | 200 `{data: Printer}`                                                   | 400 input/ID, 404 unknown station                                    |
 | `POST /api/printers/:id/start`   | Printer ID; no body                                                                          | 200 `{data:{job:Job,order:Order}}`                                      | 404 station, 409 offline/busy/empty/insufficient paper/state changed |
 | `GET /api/jobs`                  | `?page=1&limit=20&status=FAILED`; optional status enum                                       | Paginated Job list, newest-first                                        | 400 pagination/status                                                |
 | `PATCH /api/jobs/:id/progress`   | `{progress: integer 0..99}`                                                                  | 200 `{data: Job}`                                                       | 400 bounds/ID, 409 absent/nonprinting job or progress decreased      |
@@ -128,15 +114,15 @@ Offline/error transitions requeue only the waiting jobs. Active printing remains
 
 ## Inventory, people, audit and DSA lab
 
-| Method / endpoint             | Authentication / role | Request                               | Response                                                                                              | Specific errors                                                |
-| ----------------------------- | --------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------ |
-| `GET /api/inventory`          | Staff                 | None                                  | 200 `{data: Inventory[]}` by paper size                                                               | Database failure                                               |
-| `POST /api/inventory/restock` | Staff                 | `{paperSize:"A4"                      | "A3"                                                                                                  | "Letter",sheets:1..1000000}` integer                           | 200 `{data: Inventory}` with stock incremented          | 400 input; not request-key idempotent                              |
-| `GET /api/users`              | Admin                 | `?page=1&limit=20`                    | Paginated User list, no password hashes                                                               | 400 pagination                                                 |
-| `PATCH /api/users/:id/role`   | Admin                 | `{role:"customer"                     | "operator"                                                                                            | "admin"}`                                                      | 200 `{data: User}`; disconnects affected user's sockets | 400 input, 404 user, 409 self-demotion/self-role-change disallowed |
-| `GET /api/audit`              | Admin                 | `?page=1&limit=20`                    | Paginated audit records with actor `{_id,name,email}`, action, entity, detail, timestamps             | 400 pagination                                                 |
-| `GET /api/dsa`                | Staff                 | None                                  | 200 `{data:{fifo:JobDemo[],priority:{heap,ordered},circular:{capacity,front,rear,size,slots,items}}}` | 429 sandbox account cap                                        |
-| `POST /api/dsa/operate`       | Staff                 | `{structure,operation,job?}` as below | 200 `{data:{result,operation,structure,state,complexity}}`                                            | 400 input/missing job, 409 full sandbox queue, 429 sandbox cap |
+| Method / endpoint             | Authentication / role | Request                                                                 | Response                                                                                              | Specific errors                                                |
+| ----------------------------- | --------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `GET /api/inventory`          | Staff                 | None                                                                    | 200 `{data: Inventory[]}` by paper size                                                               | Database failure                                               |
+| `POST /api/inventory/restock` | Staff                 | `{paperSize,sheets}`; paper A4, A3 or Letter, sheets integer 1..1000000 | 200 `{data: Inventory}` with stock incremented                                                        | 400 input; not request-key idempotent                          |
+| `GET /api/users`              | Admin                 | `?page=1&limit=20`                                                      | Paginated User list, no password hashes                                                               | 400 pagination                                                 |
+| `PATCH /api/users/:id/role`   | Admin                 | `{role}`: `customer`, `operator` or `admin`                             | 200 `{data: User}`; disconnects affected sockets                                                      | 400 input, 404 user, 409 changing own role disallowed          |
+| `GET /api/audit`              | Admin                 | `?page=1&limit=20`                                                      | Paginated audit records with actor `{_id,name,email}`, action, entity, detail, timestamps             | 400 pagination                                                 |
+| `GET /api/dsa`                | Staff                 | None                                                                    | 200 `{data:{fifo:JobDemo[],priority:{heap,ordered},circular:{capacity,front,rear,size,slots,items}}}` | 429 sandbox account cap                                        |
+| `POST /api/dsa/operate`       | Staff                 | `{structure,operation,job?}` as below                                   | 200 `{data:{result,operation,structure,state,complexity}}`                                            | 400 input/missing job, 409 full sandbox queue, 429 sandbox cap |
 
 Demo request:
 
@@ -156,20 +142,19 @@ Connect to the current origin with `io({withCredentials:true})`. An authenticate
 
 | Event                                                | Payload        | Audience / trigger                                                                |
 | ---------------------------------------------------- | -------------- | --------------------------------------------------------------------------------- |
-| `job:created`                                        | Job            | Customer + staff after new original/reprint job commits                           |
-| `job:queued`                                         | Job            | Customer + staff after heap admission or release from offline buffer              |
-| `job:assigned`                                       | Job            | Customer + staff after persisted assignment                                       |
-| `job:started`                                        | Job            | Customer + staff after printer start transaction                                  |
-| `job:progress`                                       | Job            | Customer + staff after recorded progress                                          |
-| `job:printed`                                        | Job            | Customer + staff when printing completes                                          |
-| `job:quality-check`                                  | Job            | Customer + staff when FIFO head enters active QC                                  |
-| `job:completed`                                      | Job            | Customer + staff after QC passes                                                  |
-| `job:failed`                                         | Job            | Customer + staff after printing/QC fails                                          |
-| `job:cancelled`                                      | Job            | Customer + staff after cancellation                                               |
-| `order:status`                                       | Order          | Customer + staff after creation or order state changes                            |
+| `job:created`                                        | Job            | Request owner + staff after new original/reprint job commits                      |
+| `job:queued`                                         | Job            | Request owner + staff after heap admission or release from offline buffer         |
+| `job:assigned`                                       | Job            | Request owner + staff after persisted assignment                                  |
+| `job:started`                                        | Job            | Request owner + staff after printer start transaction                             |
+| `job:progress`                                       | Job            | Request owner + staff after recorded progress                                     |
+| `job:printed`                                        | Job            | Request owner + staff when printing completes                                     |
+| `job:quality-check`                                  | Job            | Request owner + staff when FIFO head enters active QC                             |
+| `job:completed`                                      | Job            | Request owner + staff after QC passes                                             |
+| `job:failed`                                         | Job            | Request owner + staff after printing/QC fails                                     |
+| `job:cancelled`                                      | Job            | Request owner + staff after cancellation                                          |
+| `order:status`                                       | Order          | Request owner + staff after creation or order state changes                       |
 | `printer:online`, `printer:offline`, `printer:error` | Printer        | Staff after status change; new printer emits offline                              |
 | `queue:updated`                                      | Queue snapshot | Staff after a successful serialized scheduler operation                           |
 | `inventory:updated`                                  | Inventory      | Staff after restock; printer starts also refresh clients through job/queue events |
-| `pricing:updated`                                    | PricingRule    | Staff after rule update                                                           |
 
-Events are emitted after their underlying writes. They are not durable replay messages. Consumers should reload authoritative REST state after reconnecting. Customer sockets do not receive other customers' jobs or global queue snapshots.
+Events are emitted after their underlying writes. They are not durable replay messages. Consumers should reload authoritative REST state after reconnecting. Member sockets do not receive other members' jobs or global queue snapshots.

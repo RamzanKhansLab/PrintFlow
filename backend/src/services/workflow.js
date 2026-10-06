@@ -15,7 +15,7 @@ import {
   printerSchema,
   paperSchema,
 } from "../middleware/validation.js";
-import { createQuote } from "../pricing/quote.js";
+import { preparePrint } from "../printing/plan.js";
 
 export async function transaction(actor, action, operation) {
   const session = await mongoose.startSession();
@@ -48,7 +48,6 @@ const orderInput = z
     config: configSchema,
     deadline: z.iso.datetime({ offset: true }).nullable().optional(),
     clientRequestId: z.uuid(),
-    expectedTotalPaise: z.number().int().min(0),
   })
   .strict();
 
@@ -83,15 +82,10 @@ export class Workflow {
         user,
         "order.created",
         async (session) => {
-          const { document, config, quote } = await createQuote(
+          const { document, config, printSummary } = await preparePrint(
             user,
             data,
             session,
-          );
-          assert(
-            quote.totalPaise === data.expectedTotalPaise,
-            409,
-            "Pricing changed. Refresh your quote before ordering",
           );
           const [order] = await Order.create(
             [
@@ -99,7 +93,7 @@ export class Workflow {
                 customer: user._id,
                 document: document._id,
                 config,
-                quote,
+                printSummary,
                 deadline: data.deadline,
                 clientRequestId: data.clientRequestId,
                 reference: `PF-${randomUUID().slice(0, 8).toUpperCase()}`,
@@ -115,7 +109,7 @@ export class Workflow {
                 document: document._id,
                 label: order.reference,
                 config,
-                sheets: quote.sheets,
+                sheets: printSummary.sheets,
                 priorityScore: await this.scheduler.priorityFor(config),
                 deadline: data.deadline,
               },
@@ -142,12 +136,12 @@ export class Workflow {
               (user.role !== "customer" ||
                 String(order.customer) === String(user._id)),
             404,
-            "Order not found",
+            "Print request not found",
           );
           assert(
             order.status === "QUEUED",
             409,
-            "Only an order that has not started can be cancelled",
+            "Only a print request that has not started can be cancelled",
           );
           const job = await PrintJob.findOneAndUpdate(
             { order: id, status: { $in: ["QUEUED", "ASSIGNED"] } },
@@ -403,7 +397,10 @@ export class Workflow {
               label: original.label,
               config: original.config,
               sheets: original.sheets,
-              priorityScore: await this.scheduler.priorityFor(original.config, true),
+              priorityScore: await this.scheduler.priorityFor(
+                original.config,
+                true,
+              ),
               deadline: original.deadline,
               reprintOf: original._id,
             },

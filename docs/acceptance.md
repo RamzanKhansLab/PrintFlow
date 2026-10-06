@@ -9,28 +9,25 @@ This is a **not-yet-executed** checklist. Coding and documentation were requeste
 - [ ] Run `npm run dev`; confirm Vite at 5173 and backend health at 5000.
 - [ ] Run `npm run build`, stop development servers, then `npm start`.
 - [ ] Open localhost:5000 with local `NODE_ENV=development`; confirm SPA and API share the origin.
-- [ ] Reload `/services`, `/print`, `/orders`, `/admin/dsa` and an actual station URL directly.
+- [ ] Reload `/guide`, `/print`, `/requests`, `/admin/dsa` and an actual station URL directly.
 - [ ] Check `/api/not-a-route` returns JSON 404; a nonexistent static `.js` asset must not return SPA HTML.
 
 ## 2. Accounts and access
 
-- [ ] Register customer A and customer B with different browser profiles.
+- [ ] Register member A and member B with different browser profiles.
 - [ ] Promote a registered admin locally with `npm run admin -- EMAIL`; sign in again.
 - [ ] Create a separate operator through normal registration and admin role management.
-- [ ] A customer cannot call staff/admin APIs, open another customer's order, or download their document.
-- [ ] An operator can operate queues but cannot edit pricing, add printers, change roles or read the admin audit endpoint.
+- [ ] A member cannot call staff/admin APIs, open another member's request, or download their document.
+- [ ] An operator can operate queues but cannot add printers, change roles or read the admin audit endpoint.
 - [ ] Registration rejects an injected `role` field; duplicate email is rejected.
 - [ ] Log out and verify protected API access fails in that browser; check role-change socket disconnection.
 
-## 3. Uploads, pricing and orders
+## 3. Uploads, paper previews and requests
 
 - [ ] Upload a known multi-page PDF; compare reported page count. Upload PNG/JPEG; each is one page.
 - [ ] Reject invalid bytes, unsupported/Office files, encrypted PDFs and files larger than 10 MB.
 - [ ] A download returns the original bytes only to the owner/staff.
 - [ ] Test `1-3,5`, overlapping ranges, invalid ranges, duplex odd-page counts and multiple copies.
-- [ ] Change color, paper, binding and urgency; compare backend quote components against current database rules.
-- [ ] Change a pricing rule in a separate admin session; an old submitted total is rejected when the recalculated total differs.
-- [ ] Tampering with `expectedTotalPaise` cannot reduce the saved total.
 - [ ] Retry order creation using the same customer/UUID; it resolves to one order and original job.
 - [ ] Check the customer's order detail, list and private reference tracking.
 - [ ] Cancel before starting; verify order/job cancellation and queue removal. Reject cancellation after start.
@@ -53,8 +50,8 @@ This is a **not-yet-executed** checklist. Coding and documentation were requeste
 - [ ] Start the head QC; a second active QC is rejected.
 - [ ] Pass: job becomes COMPLETED, order READY. Fail: reason is required and order becomes ATTENTION.
 - [ ] Create one reprint from a failed job; repeated reprint of the same parent is rejected.
-- [ ] Confirm the child retains config/deadline, has +20 reprint priority relative to its service level, and links to the parent.
-- [ ] Starting the reprint consumes new paper. Old failed job and saved quote remain in history.
+- [ ] Confirm the child retains config/deadline, has +20 reprint priority relative to its scheduling priority, and links to the parent.
+- [ ] Starting the reprint consumes new paper. The failed job and original print instructions remain in history.
 
 ## 6. DSA lab
 
@@ -68,7 +65,7 @@ This is a **not-yet-executed** checklist. Coding and documentation were requeste
 ## 7. Real-time, recovery and persistence
 
 - [ ] Keep separate customer and operator sessions open. Observe created/assigned/started/progress/printed/QC/completed/failed state changes.
-- [ ] Customer A does not receive customer B's order/job events or global staff snapshots.
+- [ ] Member A does not receive member B's order/job events or global staff snapshots.
 - [ ] Disconnect/reconnect a browser; verify authoritative state refresh, connection indicator and manual refresh behavior.
 - [ ] Restart the backend with QUEUED, ASSIGNED, PRINTING, PRINTED and active QC records. Verify reconstruction and retained active stages.
 - [ ] Confirm original uploaded files survive restart/redeployment through GridFS.
@@ -82,3 +79,17 @@ This is a **not-yet-executed** checklist. Coding and documentation were requeste
 - [ ] Assess behavior after a Free-service cold start; do not treat a wake delay as a scheduler completion time.
 - [ ] Check desktop/mobile layouts, keyboard controls, loading/error/empty states, and long names/references.
 - [ ] Record observations honestly in the project report; include date, Node version, browser, dataset and any defects. Do not replace unexecuted checks with assumed passes.
+
+## Printing tool redesign and Python integration
+
+- [ ] No pricing navigation, page, admin editor, monetary total or checkout appears. `/api/pricing` and its old subroutes return JSON 404.
+- [ ] `/print/preview` is called under `/api`, returns counts for owned documents and rejects invalid page ranges.
+- [ ] Five selected pages, duplex, two copies gives six sheets and ten impressions. Overlapping ranges count pages once.
+- [ ] Submission recalculates `printSummary` from the document and config; undocumented fields such as a client-supplied sheet count are rejected.
+- [ ] New request details show sheets; an older request without `printSummary` still opens.
+- [ ] `/requests` and detail links work. Existing `/orders` links redirect, and `/services` redirects to `/guide`.
+- [ ] Check Y2K/Memphis layouts at 320 px, tablet and desktop widths: navigation, forms, tables, station controls and DSA diagrams remain usable.
+- [ ] Keyboard focus, menu toggling, reduced motion, loading, empty/error states and actual socket connection indicators work.
+- [ ] `npm run check:python` finds Python 3.10+ and starts/stops the private worker without MongoDB access.
+- [ ] Live queues and the sandbox use the Python classes; no JavaScript DSA implementation remains in `backend/src/dsa`.
+- [ ] Worker failure marks health unready and subsequent recovery restores persisted print/QC state without repeating physical printing.
