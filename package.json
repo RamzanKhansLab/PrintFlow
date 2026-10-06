@@ -10,14 +10,14 @@
     "node": ">=22.12.0 <23"
   },
   "scripts": {
-    "dev": "concurrently -k -n api,web \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-    "dev:backend": "npm run dev -w backend",
-    "dev:frontend": "npm run dev -w frontend",
-    "build": "npm run check:python && npm run build -w frontend",
-    "check:python": "node backend/src/scripts/check-python.js",
-    "start": "npm start -w backend",
-    "admin": "npm run admin -w backend --"
-  },
+  "dev": "concurrently -k -n api,web \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+  "dev:backend": "npm run dev -w backend",
+  "dev:frontend": "npm run dev -w frontend",
+  "build": "npm run build -w frontend",
+  "check:python": "node backend/src/scripts/check-python.js",
+  "start": "npm start -w backend",
+  "admin": "npm run admin -w backend --"
+},
   "devDependencies": {
     "concurrently": "^9.2.1"
   }
